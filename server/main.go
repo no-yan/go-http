@@ -7,6 +7,16 @@ import (
 	"net"
 )
 
+type Response struct {
+}
+
+func (*Response) Write(w io.Writer) {
+	w.Write([]byte("HTTP/1.1 200 OK\r\n"))
+	w.Write([]byte("Content-Length: 2\r\n"))
+	w.Write([]byte("\r\n"))
+	w.Write([]byte("OK"))
+}
+
 func main() {
 	ln, err := net.Listen("tcp", "localhost:8888")
 	defer func() {
@@ -36,6 +46,9 @@ func main() {
 				}
 			}
 			fmt.Println(string(b[:n]))
+
+			r := Response{}
+			r.Write(conn)
 		}()
 	}
 }
