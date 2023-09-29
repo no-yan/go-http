@@ -1,11 +1,18 @@
 package main
 
 import (
-	"errors"
+	"bufio"
 	"fmt"
 	"io"
 	"net"
+	"strings"
 )
+
+type Request struct {
+	Method       string
+	Target       string
+	ProtoVersion string
+}
 
 type Response struct {
 }
@@ -35,20 +42,45 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		var req Request
 		go func() {
 			defer conn.Close()
 			// Read all request
-			b := make([]byte, 4096)
-			n, err := conn.Read(b)
-			if err != nil {
-				if !errors.Is(err, io.EOF) {
+			sc := bufio.NewScanner(conn)
+			if sc.Scan() {
+				if err := sc.Err(); err != nil {
 					panic(err)
 				}
+				requestLine := sc.Text()
+				method, target, protoVersion, err := parseRequestLine(requestLine)
+				if err != nil {
+					panic(err)
+				}
+				req.Method = method
+				req.Target = target
+				req.ProtoVersion = protoVersion
+				if err != nil {
+					panic(err)
+				}
+				fmt.Printf("method=%s, target=%s, protoVersion=%s\n", method, target, protoVersion)
 			}
-			fmt.Println(string(b[:n]))
 
-			r := Response{}
-			r.Write(conn)
+			res := Response{}
+			res.Write(conn)
 		}()
 	}
+}
+
+// Parse request line ("GET /PATH HTTP/1.1") to three parts
+func parseRequestLine(line string) (string, string, string, error) {
+	ls := strings.Split(line, " ")
+
+	if len(ls) != 3 {
+		return "", "", "", fmt.Errorf("invalid request line: %s", line)
+	}
+	method := ls[0]
+	target := ls[1]
+	protoVersion := ls[2]
+
+	return method, target, protoVersion, nil
 }
