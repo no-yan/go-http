@@ -27,9 +27,6 @@ func (*Response) Write(w io.Writer) {
 
 func main() {
 	ln, err := net.Listen("tcp", "localhost:8888")
-	if err != nil {
-		panic(err)
-	}
 	defer func() {
 		err := ln.Close()
 		if err != nil {
@@ -51,7 +48,6 @@ func main() {
 			defer conn.Close()
 			var req Request
 
-			// Read all request
 			r := bufio.NewReader(conn)
 			requestLine, err := r.ReadString('\n')
 			if err != nil {
@@ -95,6 +91,7 @@ func main() {
 					panic(err)
 				}
 			}
+			res := Response{}
 			res.Write(conn)
 		}()
 	}
