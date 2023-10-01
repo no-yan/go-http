@@ -88,8 +88,7 @@ func main() {
 			}
 
 			// read body
-			res := Response{}
-
+			// TODO: read body only if method can have body
 			if req.ContentLength > 0 {
 				body := make([]byte, req.ContentLength)
 				if _, err := r.Read(body); err != nil && err != io.EOF {
