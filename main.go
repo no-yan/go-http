@@ -4,9 +4,122 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"net"
+	"strconv"
 	"strings"
 )
+
+const (
+	ProtocolVersion = "HTTP/1.1"
+	ServerAddress   = "localhost:8888"
+)
+
+type Server struct {
+	Address string
+}
+
+func NewServer(address string) *Server {
+	return &Server{Address: address}
+}
+
+func (s *Server) Start() error {
+	ln, err := net.Listen("tcp", s.Address)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := ln.Close()
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	fmt.Println("Server is running at localhost:8888")
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return err
+		}
+
+		go s.handleConnection(conn)
+	}
+}
+
+func (s *Server) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	req, err := s.parseRequest(conn)
+	if err != nil {
+		s.sendErrorResponse(conn, err)
+		return
+	}
+
+	s.processRequest(conn, req)
+}
+
+func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
+	r := bufio.NewReader(conn)
+
+	requestLine, err := r.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+	requestLine = strings.TrimSpace(requestLine) // Remove trailing newline
+	method, target, protoVersion, err := parseRequestLine(requestLine)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &Request{
+		Method:       method,
+		Target:       target,
+		ProtoVersion: protoVersion,
+	}
+
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("failed to read header line: %v", err)
+		}
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			break // end of field lines
+		}
+
+		name, value, found := strings.Cut(line, ":")
+		if !found {
+			// フィールドラインに ":" が含まれていないというエラーを返す
+			return nil, fmt.Errorf("field line should have separator ':' || %s", line)
+
+		}
+
+		if name == "Content-Length" {
+			req.ContentLength, err = strconv.Atoi(value)
+			if err != nil {
+				return nil, fmt.Errorf("invalid content length: %v", err)
+			}
+		}
+
+		fields := make(map[string]string)
+		if _, ok := fields[name]; !ok {
+			fields[name] = strings.TrimSpace(value)
+		}
+
+	}
+
+	return req, nil
+}
+
+func (s *Server) sendErrorResponse(conn net.Conn, err error) {
+	// ...
+}
+
+func (s *Server) processRequest(conn net.Conn, req *Request) {
+	// ...
+}
 
 type Request struct {
 	Method        string
@@ -26,75 +139,11 @@ func (*Response) Write(w io.Writer) {
 }
 
 func main() {
-	ln, err := net.Listen("tcp", "localhost:8888")
-	defer func() {
-		err := ln.Close()
-		if err != nil {
-			panic(err)
-		}
-	}()
-	if err != nil {
-		panic(err)
+	server := NewServer(ServerAddress)
+	if err := server.Start(); err != nil {
+		log.Fatalf("failed to start server: %v", err)
 	}
-	fmt.Println("Server is running at localhost:8888")
 
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			panic(err)
-		}
-
-		go func() {
-			defer conn.Close()
-			var req Request
-
-			r := bufio.NewReader(conn)
-			requestLine, err := r.ReadString('\n')
-			if err != nil {
-				panic("failed to read request line")
-			}
-			requestLine = strings.TrimSpace(requestLine) // Remove trailing newline
-			method, target, protoVersion, err := parseRequestLine(requestLine)
-			if err != nil {
-				panic(err)
-			}
-			req.Method = method
-			req.Target = target
-			req.ProtoVersion = protoVersion
-			fmt.Printf("method=%s, target=%s, protoVersion=%s\n", method, target, protoVersion)
-			// if protoVersion != "HTTP/1.1" {
-			// 	fmt.Errorf("unsupported protocol version: %s", protoVersion)
-			// }
-
-			// read field lines
-			for {
-				line, err := r.ReadString('\n')
-				if err != nil {
-					panic("failed to read field lines")
-				}
-				line = strings.TrimSpace(line)
-
-				if line == "" {
-					fmt.Println("end of field lines")
-					break // end of field lines
-				}
-				if strings.HasPrefix(line, "Content-Length:") {
-					fmt.Sscanf(line, "Content-Length: %d", &req.ContentLength)
-				}
-			}
-
-			// read body
-			// TODO: read body only if method can have body
-			if req.ContentLength > 0 {
-				body := make([]byte, req.ContentLength)
-				if _, err := r.Read(body); err != nil && err != io.EOF {
-					panic(err)
-				}
-			}
-			res := Response{}
-			res.Write(conn)
-		}()
-	}
 }
 
 // Parse request line ("GET /PATH HTTP/1.1") to three parts
