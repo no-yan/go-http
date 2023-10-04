@@ -76,6 +76,7 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 		Method:       method,
 		Target:       target,
 		ProtoVersion: protoVersion,
+		Fields:       make(map[string]string),
 	}
 
 	for {
@@ -103,9 +104,8 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 			}
 		}
 
-		fields := make(map[string]string)
-		if _, ok := fields[name]; !ok {
-			fields[name] = strings.TrimSpace(value)
+		if _, ok := req.Fields[name]; !ok {
+			req.Fields[name] = strings.TrimSpace(value)
 		}
 
 	}
@@ -126,6 +126,7 @@ type Request struct {
 	Target        string
 	ProtoVersion  string
 	ContentLength int
+	Fields        map[string]string
 }
 
 type Response struct {
