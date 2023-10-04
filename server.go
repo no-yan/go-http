@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -59,6 +60,11 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 	method, target, protoVersion, err := parseRequestLine(requestLine)
 	if err != nil {
 		return nil, err
+	}
+
+	if protoVersion != "HTTP/1.1" {
+		// Deny request
+		s.sendErrorResponse(conn, fmt.Errorf("unsupported protocol version: %s", protoVersion))
 	}
 
 	req := &Request{
