@@ -130,6 +130,7 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 		if _, err := r.Read(body); err != nil && err != io.EOF {
 			return nil, fmt.Errorf("failed to read body: %v", err)
 		}
+		req.Body = string(body)
 	}
 
 	return req, nil
