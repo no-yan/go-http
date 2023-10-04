@@ -91,6 +91,7 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 		}
 
 		name, value, found := strings.Cut(line, ":")
+		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
 		if !found {
 			// フィールドラインに ":" が含まれていないというエラーを返す
 			return nil, fmt.Errorf("field line should have separator ':' || %s", line)
