@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 )
@@ -16,16 +17,25 @@ type Request struct {
 	ProtoVersion  string
 	ContentLength int
 	Fields        map[string][]string
+	Response      *Response
+	Body          string
 }
 
 type Response struct {
+	StatusCode    int
+	StatusMessage string
+	Fields        map[string][]string
+	Body          string
+	ProtoVersion  string
+	ContentLength int
+	Request       *Request
 }
 
-func (*Response) Write(w io.Writer) {
-	w.Write([]byte("HTTP/1.1 200 OK\r\n"))
-	w.Write([]byte("Content-Length: 2\r\n"))
-	w.Write([]byte("\r\n"))
-	w.Write([]byte("OK"))
+func (r *Response) Write(w io.Writer) {
+	fmt.Fprintf(w, "%s %d %s\r\n", r.ProtoVersion, r.StatusCode, r.StatusMessage)
+	fmt.Fprintf(w, "Content-Length: %d\r\n", len(r.Body))
+	fmt.Fprintf(w, "\r\n")
+	fmt.Fprintf(w, "%s", r.Body)
 }
 
 func main() {
