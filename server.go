@@ -49,6 +49,25 @@ func (s *Server) handleConnection(conn net.Conn) {
 	s.processRequest(conn, req)
 }
 
+func (s *Server) sendErrorResponse(conn net.Conn, err error) {
+	res := Response{
+		StatusCode:    500,
+		StatusMessage: "Internal Server Error",
+		ProtoVersion:  "HTTP/1.1",
+		Body:          err.Error(),
+	}
+	res.Write(conn)
+}
+
+func (s *Server) processRequest(conn net.Conn, req *Request) {
+	r := Response{
+		StatusCode:    200,
+		StatusMessage: "OK",
+		ProtoVersion:  "HTTP/1.1",
+		Body:          "OK",
+	}
+	r.Write(conn)
+}
 func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 	r := bufio.NewReader(conn)
 
@@ -64,7 +83,7 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 
 	if protoVersion != "HTTP/1.1" {
 		// Deny request
-		s.sendErrorResponse(conn, fmt.Errorf("unsupported protocol version: %s", protoVersion))
+		return nil, fmt.Errorf("unsupported protocol version: %s", protoVersion)
 	}
 
 	req := &Request{
@@ -114,16 +133,6 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 	}
 
 	return req, nil
-}
-
-func (s *Server) sendErrorResponse(conn net.Conn, err error) {
-	msg := "HTTP/1.1 500 Internal Server Error\r\n\r\n" + err.Error()
-	conn.Write([]byte(msg))
-}
-
-func (s *Server) processRequest(conn net.Conn, req *Request) {
-	r := Response{}
-	r.Write(conn)
 }
 
 // Parse request line ("GET /PATH HTTP/1.1") to three parts
