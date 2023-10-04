@@ -52,6 +52,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	req, err := s.parseRequest(conn)
 	if err != nil {
+		fmt.Println(err)
 		s.sendErrorResponse(conn, err)
 		return
 	}
@@ -115,11 +116,15 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 }
 
 func (s *Server) sendErrorResponse(conn net.Conn, err error) {
-	// ...
+	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
+	conn.Write([]byte("Content-Length: 2\r\n"))
+	conn.Write([]byte("\r\n"))
+	conn.Write([]byte("NG"))
 }
 
 func (s *Server) processRequest(conn net.Conn, req *Request) {
-	// ...
+	r := Response{}
+	r.Write(conn)
 }
 
 type Request struct {
