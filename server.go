@@ -98,6 +98,15 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 		req.Fields[name] = append(req.Fields[name], value)
 	}
 
+	// read body
+	// TODO: read body only if method can have body
+	if req.ContentLength > 0 {
+		body := make([]byte, req.ContentLength)
+		if _, err := r.Read(body); err != nil && err != io.EOF {
+			return nil, fmt.Errorf("failed to read body: %v", err)
+		}
+	}
+
 	return req, nil
 }
 
