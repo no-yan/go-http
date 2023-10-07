@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -20,6 +22,7 @@ func NewServer(address string) *Server {
 func (s *Server) Start() error {
 	ln, err := net.Listen("tcp", s.Address)
 	if err != nil {
+		PrintStack()
 		return err
 	}
 	defer ln.Close()
@@ -41,6 +44,10 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	req, err := s.parseRequest(conn)
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return // client closed connection
+		}
+		PrintStack()
 		fmt.Println(err)
 		s.sendErrorResponse(conn, err)
 		return
@@ -73,6 +80,9 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 
 	requestLine, err := r.ReadString('\n')
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, fmt.Errorf("Connection closed: %w", err)
+		}
 		return nil, err
 	}
 	requestLine = strings.TrimSpace(requestLine) // Remove trailing newline
@@ -148,4 +158,24 @@ func parseRequestLine(line string) (string, string, string, error) {
 	protoVersion := ls[2]
 
 	return method, target, protoVersion, nil
+}
+
+func PrintStack() {
+	var pc [100]uintptr
+	n := runtime.Callers(0, pc[:])
+	frames := runtime.CallersFrames(pc[:n])
+	var (
+		fr runtime.Frame
+		ok bool
+	)
+	if _, ok = frames.Next(); !ok {
+		return
+	}
+	for {
+		fr, ok = frames.Next()
+		if !ok {
+			return
+		}
+		fmt.Printf("%s:%d %s\n", fr.File, fr.Line, fr.Function)
+	}
 }
