@@ -11,16 +11,6 @@ const (
 	ServerAddress   = "localhost:8888"
 )
 
-type Request struct {
-	Method        string
-	Target        string
-	ProtoVersion  string
-	ContentLength int
-	Fields        map[string][]string
-	Response      *Response
-	Body          string
-}
-
 type Response struct {
 	StatusCode    int
 	StatusMessage string
