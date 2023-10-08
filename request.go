@@ -21,38 +21,40 @@ type Request struct {
 	Body          string
 }
 
-func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
+func NewRequest() *Request {
+	return &Request{
+		Fields: map[string][]string{},
+	}
+}
+
+func (req *Request) parseRequest(conn net.Conn) error {
 	r := bufio.NewReader(conn)
 
 	requestLine, err := r.ReadString('\n')
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return nil, fmt.Errorf("Connection closed: %w", err)
+			return fmt.Errorf("Connection closed: %w", err)
 		}
-		return nil, err
+		return err
 	}
-	requestLine = strings.TrimSpace(requestLine) // Remove trailing newline
 	method, target, protoVersion, err := parseRequestLine(requestLine)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if protoVersion != "HTTP/1.1" {
 		// Deny request
-		return nil, fmt.Errorf("unsupported protocol version: %s", protoVersion)
+		return fmt.Errorf("unsupported protocol version: %s", protoVersion)
 	}
 
-	req := &Request{
-		Method:       method,
-		Target:       target,
-		ProtoVersion: protoVersion,
-		Fields:       make(map[string][]string),
-	}
+	req.Method = method
+	req.Target = target
+	req.ProtoVersion = protoVersion
 
 	for {
 		line, err := r.ReadString('\n')
 		if err != nil {
-			return nil, fmt.Errorf("failed to read header line: %v", err)
+			return fmt.Errorf("failed to read header line: %v", err)
 		}
 		line = strings.TrimSpace(line)
 
@@ -63,13 +65,13 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 		name, value, found := strings.Cut(line, ":")
 		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
 		if !found {
-			return nil, fmt.Errorf("field line should have separator ':' || %s", line)
+			return fmt.Errorf("field line should have separator ':' || %s", line)
 		}
 
 		if name == "Content-Length" {
 			req.ContentLength, err = strconv.Atoi(value)
 			if err != nil {
-				return nil, fmt.Errorf("invalid content length: %v", err)
+				return fmt.Errorf("invalid content length: %v", err)
 			}
 		}
 
@@ -84,16 +86,17 @@ func (s *Server) parseRequest(conn net.Conn) (*Request, error) {
 	if req.ContentLength > 0 {
 		body := make([]byte, req.ContentLength)
 		if _, err := r.Read(body); err != nil && err != io.EOF {
-			return nil, fmt.Errorf("failed to read body: %v", err)
+			return fmt.Errorf("failed to read body: %v", err)
 		}
 		req.Body = string(body)
 	}
 
-	return req, nil
+	return nil
 }
 
 // Parse request line ("GET /PATH HTTP/1.1") to three parts
 func parseRequestLine(line string) (string, string, string, error) {
+	line = strings.TrimSpace(line) // Remove trailing newline
 	ls := strings.Split(line, " ")
 
 	if len(ls) != 3 {

@@ -38,8 +38,8 @@ func (s *Server) Start() error {
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	req, err := s.parseRequest(conn)
-	if err != nil {
+	req := NewRequest()
+	if err := req.parseRequest(conn); err != nil {
 		if errors.Is(err, io.EOF) {
 			return // client closed connection
 		}
