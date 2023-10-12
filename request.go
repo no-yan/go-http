@@ -31,7 +31,7 @@ func (req *Request) parseRequest(conn net.Conn) error {
 	r := bufio.NewReader(conn)
 
 	if err := req.parseRequestLine(r); err != nil {
-		return err
+		return fmt.Errorf("failed to parse request line: %v", err)
 	}
 
 	if err := parseHeader(r, req); err != nil {
@@ -68,13 +68,13 @@ func (req *Request) parseRequestLine(r *bufio.Reader) error {
 func parseRequestLine(line string) (method, target, protoVersion string, err error) {
 	line = strings.TrimSpace(line) // Remove trailing newline
 	ls := strings.Split(line, " ")
+	if len(ls) != 3 {
+		err = fmt.Errorf("invalid request line: %s", line)
+	}
 
 	method = ls[0]
 	target = ls[1]
 	protoVersion = ls[2]
-	if len(ls) != 3 {
-		err = fmt.Errorf("invalid request line: %s", line)
-	}
 	return
 }
 
