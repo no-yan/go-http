@@ -51,6 +51,32 @@ func (req *Request) parseRequest(conn net.Conn) error {
 	req.Target = target
 	req.ProtoVersion = protoVersion
 
+	if err := parseHeader(r, req); err != nil {
+		return fmt.Errorf("failed to parse header: %v", err)
+	}
+
+	if err := parseBody(r, req); err != nil {
+		return fmt.Errorf("failed to parse body: %v", err)
+	}
+	return nil
+}
+
+// Parse request line ("GET /PATH HTTP/1.1") to three parts
+func parseRequestLine(line string) (string, string, string, error) {
+	line = strings.TrimSpace(line) // Remove trailing newline
+	ls := strings.Split(line, " ")
+
+	if len(ls) != 3 {
+		return "", "", "", fmt.Errorf("invalid request line: %s", line)
+	}
+	method := ls[0]
+	target := ls[1]
+	protoVersion := ls[2]
+
+	return method, target, protoVersion, nil
+}
+
+func parseHeader(r *bufio.Reader, req *Request) error {
 	for {
 		line, err := r.ReadString('\n')
 		if err != nil {
@@ -80,8 +106,10 @@ func (req *Request) parseRequest(conn net.Conn) error {
 		}
 		req.Fields[name] = append(req.Fields[name], value)
 	}
+	return nil
+}
 
-	// read body
+func parseBody(r *bufio.Reader, req *Request) error {
 	// TODO: read body only if method can have body
 	if req.ContentLength > 0 {
 		body := make([]byte, req.ContentLength)
@@ -90,23 +118,7 @@ func (req *Request) parseRequest(conn net.Conn) error {
 		}
 		req.Body = string(body)
 	}
-
 	return nil
-}
-
-// Parse request line ("GET /PATH HTTP/1.1") to three parts
-func parseRequestLine(line string) (string, string, string, error) {
-	line = strings.TrimSpace(line) // Remove trailing newline
-	ls := strings.Split(line, " ")
-
-	if len(ls) != 3 {
-		return "", "", "", fmt.Errorf("invalid request line: %s", line)
-	}
-	method := ls[0]
-	target := ls[1]
-	protoVersion := ls[2]
-
-	return method, target, protoVersion, nil
 }
 
 func PrintStack() {
