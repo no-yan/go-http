@@ -30,26 +30,9 @@ func NewRequest() *Request {
 func (req *Request) parseRequest(conn net.Conn) error {
 	r := bufio.NewReader(conn)
 
-	requestLine, err := r.ReadString('\n')
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return fmt.Errorf("Connection closed: %w", err)
-		}
+	if err := req.parseRequestLine(r); err != nil {
 		return err
 	}
-	method, target, protoVersion, err := parseRequestLine(requestLine)
-	if err != nil {
-		return err
-	}
-
-	if protoVersion != "HTTP/1.1" {
-		// Deny request
-		return fmt.Errorf("unsupported protocol version: %s", protoVersion)
-	}
-
-	req.Method = method
-	req.Target = target
-	req.ProtoVersion = protoVersion
 
 	if err := parseHeader(r, req); err != nil {
 		return fmt.Errorf("failed to parse header: %v", err)
@@ -62,18 +45,37 @@ func (req *Request) parseRequest(conn net.Conn) error {
 }
 
 // Parse request line ("GET /PATH HTTP/1.1") to three parts
-func parseRequestLine(line string) (string, string, string, error) {
+func (req *Request) parseRequestLine(r *bufio.Reader) error {
+	line, err := r.ReadString('\n')
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return fmt.Errorf("Connection closed: %w", err)
+		}
+		return err
+	}
+	if req.Method, req.Target, req.ProtoVersion, err = parseRequestLine(line); err != nil {
+		return err
+	}
+
+	if req.ProtoVersion != "HTTP/1.1" {
+		// Deny request
+		return fmt.Errorf("unsupported protocol version: %s", req.ProtoVersion)
+	}
+
+	return nil
+}
+
+func parseRequestLine(line string) (method, target, protoVersion string, err error) {
 	line = strings.TrimSpace(line) // Remove trailing newline
 	ls := strings.Split(line, " ")
 
+	method = ls[0]
+	target = ls[1]
+	protoVersion = ls[2]
 	if len(ls) != 3 {
-		return "", "", "", fmt.Errorf("invalid request line: %s", line)
+		err = fmt.Errorf("invalid request line: %s", line)
 	}
-	method := ls[0]
-	target := ls[1]
-	protoVersion := ls[2]
-
-	return method, target, protoVersion, nil
+	return
 }
 
 func parseHeader(r *bufio.Reader, req *Request) error {
