@@ -34,7 +34,7 @@ func (req *Request) parseRequest(conn net.Conn) error {
 		return fmt.Errorf("failed to parse request line: %v", err)
 	}
 
-	if err := parseHeader(r, req); err != nil {
+	if err := req.parseHeader(r); err != nil {
 		return fmt.Errorf("failed to parse header: %v", err)
 	}
 
@@ -78,7 +78,7 @@ func parseRequestLine(line string) (method, target, protoVersion string, err err
 	return
 }
 
-func parseHeader(r *bufio.Reader, req *Request) error {
+func (req *Request) parseHeader(r *bufio.Reader) error {
 	for {
 		line, err := r.ReadString('\n')
 		if err != nil {
