@@ -38,7 +38,7 @@ func (req *Request) parseRequest(conn net.Conn) error {
 		return fmt.Errorf("failed to parse header: %v", err)
 	}
 
-	if err := parseBody(r, req); err != nil {
+	if err := req.parseBody(r); err != nil {
 		return fmt.Errorf("failed to parse body: %v", err)
 	}
 	return nil
@@ -111,7 +111,7 @@ func parseHeader(r *bufio.Reader, req *Request) error {
 	return nil
 }
 
-func parseBody(r *bufio.Reader, req *Request) error {
+func (req *Request) parseBody(r *bufio.Reader) error {
 	// TODO: read body only if method can have body
 	if req.ContentLength > 0 {
 		body := make([]byte, req.ContentLength)
